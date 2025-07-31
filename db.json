@@ -1,0 +1,87 @@
+{
+  "rols": [
+    {
+      "id": "1",
+      "Nombre": "Administrador"
+    },
+    {
+      "id": "2",
+      "Nombre": "Profesor"
+    },
+    {
+      "id": "3",
+      "Nombre": "Estudiante"
+    }
+  ],
+  "usuarios": [
+    {
+      "id": "1",
+      "Nombre": "Luis",
+      "Apellido": "Guerrero",
+      "Correo": "luis@mail.com",
+      "Contraseña": "1234",
+      "Rol": "Administrador",
+      "FechaCreacion": "2025-07-29T15:18:23.213"
+    },
+    {
+      "id": "2",
+      "Nombre": "Jean",
+      "Apellido": "Cardoso",
+      "Correo": "jean@mail.com",
+      "Contraseña": "1234",
+      "Rol": "Profesor",
+      "FechaCreacion": "2025-07-29T16:20:15.123"
+    }
+  ],
+  "espacios": [
+    {
+      "id": "1",
+      "Nombre": "Aula 402",
+      "Tipo": "Aula",
+      "Ubicacion": "Edificio B, Piso 4",
+      "Capacidad": 14,
+      "FechaCreacion": "2025-07-28T10:00:00"
+    },
+    {
+      "id": "2",
+      "Nombre": "Aula 602",
+      "Tipo": "Aula",
+      "Ubicacion": "Edificio B, Piso 6",
+      "Capacidad": 20,
+      "FechaCreacion": "2025-07-28T10:30:00"
+    },
+    {
+      "id": "3",
+      "Nombre": "Laboratorio 301",
+      "Tipo": "Laboratorio",
+      "Ubicacion": "Edificio C, Piso 3",
+      "Capacidad": 25,
+      "FechaCreacion": "2025-07-28T11:00:00"
+    }
+  ],
+  "reservas": [
+    {
+      "ID_Usuario": 1,
+      "ID_Espacio": 1,
+      "Fecha": "2025-09-10",
+      "HoraInicio": "10:00:00",
+      "HoraFin": "12:00:00",
+      "Estado": "Rechazada",
+      "NombreUsuario": "",
+      "NombreEspacio": "",
+      "id": "1"
+    },
+    {
+      "id": "2",
+      "Estado": "Aprobada",
+      "FechaCreacion": "2025-07-29T16:07:37.8",
+      "ID_Usuario": 2,
+      "ID_Espacio": 2,
+      "Fecha": "2025-08-15T00:00:00",
+      "HoraInicio": "14:00:00",
+      "HoraFin": "16:00:00",
+      "NombreUsuario": "Jean",
+      "NombreEspacio": "Aula 602"
+    }
+  ]
+}

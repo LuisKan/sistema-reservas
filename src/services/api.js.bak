@@ -1,0 +1,192 @@
+import axios from 'axios';
+
+// Usar ruta directa al backend hasta resolver el proxy
+const API_BASE_URL = 'https://localhost:44319/api';
+
+// Configuración de axios
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+  timeout: 10000,
+});
+
+// Interceptor para peticiones
+api.interceptors.request.use(
+  (config) => {
+    console.log(`[API] Making request:`, {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL || ''}${config.url || ''}`,
+      data: config.data
+    });
+    return config;
+  },
+  (error) => {
+    console.error('[API] Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Interceptor para respuestas
+api.interceptors.response.use(
+  (response) => {
+    console.log(`[API] Response received:`, {
+      status: response.status,
+      url: response.config.url,
+      fullURL: `${response.config.baseURL || ''}${response.config.url || ''}`
+    });
+    return response;
+  },
+  (error) => {
+    // Mostrar información detallada sobre el error
+    const errorInfo = {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url,
+      method: error.config?.method?.toUpperCase(),
+      baseURL: error.config?.baseURL,
+      fullURL: error.config ? `${error.config.baseURL || ''}${error.config.url || ''}` : 'unknown',
+      data: error.response?.data,
+      message: error.message,
+      sentData: error.config?.data ? JSON.parse(error.config.data) : null
+    };
+    
+    console.error('[API] Response Error:', errorInfo);
+    
+    // Información específica según el tipo de error
+    if (error.response?.status === 404) {
+      console.warn('[API] Endpoint not found - Check if your Visual Studio API is running');
+    }
+    if (error.response?.status === 400) {
+      console.error('[API] Bad Request - Check the data being sent:', 
+        typeof error.config?.data === 'string' ? JSON.parse(error.config.data) : error.config?.data);
+      
+      // Intentar analizar el mensaje de error del backend
+      const backendError = error.response?.data;
+      if (backendError) {
+        console.error('[API] Backend error details:', backendError);
+      }
+    }
+    if (error.response?.status === 405) {
+      console.error('[API] Method Not Allowed - The server does not support this HTTP method for this endpoint');
+    }
+    if (error.code === 'ECONNREFUSED') {
+      console.error('[API] Connection refused - Make sure your Visual Studio backend is running on https://localhost:44319');
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Servicios para Roles
+export const rolService = {
+  getAll: () => api.get('/Rols'),
+  getById: (id) => api.get(`/Rols/${id}`),
+  create: (rol) => api.post('/Rols', rol),
+  update: (id, rol) => api.put(`/Rols/${id}`, rol),
+  delete: (id) => api.delete(`/Rols/${id}`),
+};
+
+// Servicios para Usuarios
+export const usuarioService = {
+  getAll: () => api.get('/Usuarios'),
+  getById: (id) => api.get(`/Usuarios/${id}`),
+  create: (usuario) => api.post('/Usuarios', usuario),
+  
+  // Método estándar de actualización con formato simplificado
+  update: (id, usuario) => {
+    console.log(`⚙️ Enviando PUT a /Usuarios/${id}`);
+    
+    // Objeto simplificado - solo los campos esenciales
+    // Eliminar campos nulos/undefined y asegurar tipos correctos
+    const datosPUT = {};
+    
+    if (usuario.Nombre !== undefined) datosPUT.Nombre = usuario.Nombre;
+    if (usuario.Apellido !== undefined) datosPUT.Apellido = usuario.Apellido;
+    if (usuario.Correo !== undefined) datosPUT.Correo = usuario.Correo;
+    
+    // Convertir ID_Rol a número solo si existe
+    if (usuario.ID_Rol !== undefined && usuario.ID_Rol !== null) {
+      datosPUT.ID_Rol = parseInt(usuario.ID_Rol);
+    }
+    
+    console.log('Datos enviados:', JSON.stringify(datosPUT));
+    return api.put(`/Usuarios/${id}`, datosPUT);
+  },
+  
+  // Método para actualizar usando formato alternativo
+  updateAlt: (id, usuario) => {
+    console.log(`⚙️ Probando formato alternativo para usuario ${id}`);
+    
+    // Formato exactamente como aparece en la consola del error 
+    const formatoExacto = {
+      "ID_Usuario": id,
+      "Nombre": usuario.Nombre,
+      "Apellido": usuario.Apellido,
+      "Correo": usuario.Correo,
+      "ID_Rol": parseInt(usuario.ID_Rol || 0)
+    };
+    
+    console.log('Formato exacto:', JSON.stringify(formatoExacto));
+    return api.put(`/Usuarios/${id}`, formatoExacto);
+  },
+  
+  // Método para actualizar solo el rol (ahora usando PUT que es lo que espera el backend)
+  updateRol: (id, rolId) => {
+    console.log(`⚙️ Enviando PUT para actualizar solo rol de usuario ${id}`);
+    
+    // Solo enviar el ID_Rol como objeto
+    const rolData = { ID_Rol: parseInt(rolId) };
+    
+    console.log('Datos de rol:', JSON.stringify(rolData));
+    return api.put(`/Usuarios/${id}`, rolData);
+  },
+  
+  // Obtener un usuario por ID y luego actualizarlo (get + update)
+  getAndUpdate: async (id, newData) => {
+    console.log(`⚙️ Obteniendo usuario ${id} y luego actualizando`);
+    
+    // 1. Obtener datos actuales
+    const response = await api.get(`/Usuarios/${id}`);
+    const currentUser = response.data;
+    
+    // 2. Combinar con los nuevos datos
+    const updatedUser = {
+      ...currentUser,
+      Nombre: newData.Nombre,
+      Apellido: newData.Apellido,
+      Correo: newData.Correo,
+      ID_Rol: parseInt(newData.ID_Rol || 0)
+    };
+    
+    console.log('Datos combinados:', JSON.stringify(updatedUser));
+    
+    // 3. Enviar actualización
+    return api.put(`/Usuarios/${id}`, updatedUser);
+  },
+  
+  delete: (id) => api.delete(`/Usuarios/${id}`),
+};
+
+// Servicios para Espacios
+export const espacioService = {
+  getAll: () => api.get('/Espacios'),
+  getById: (id) => api.get(`/Espacios/${id}`),
+  create: (espacio) => api.post('/Espacios', espacio),
+  update: (id, espacio) => api.put(`/Espacios/${id}`, espacio),
+  delete: (id) => api.delete(`/Espacios/${id}`),
+};
+
+// Servicios para Reservas
+export const reservaService = {
+  getAll: () => api.get('/Reservas'),
+  getById: (id) => api.get(`/Reservas/${id}`),
+  create: (reserva) => api.post('/Reservas', reserva),
+  update: (id, reserva) => api.put(`/Reservas/${id}`, reserva),
+  delete: (id) => api.delete(`/Reservas/${id}`),
+};
+
+export default api;

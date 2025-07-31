@@ -1,0 +1,487 @@
+import React, { useState, useEffect } from 'react';
+import { usuarioService, rolService } from '../../services/api';
+import './Usuarios.css';
+
+const Usuarios = () => {
+  const [usuarios, setUsuarios] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingUsuario, setEditingUsuario] = useState(null);
+  const [formData, setFormData] = useState({
+    Nombre: '',
+    Apellido: '',
+    Correo: '',
+    Contraseña: '',
+    Rol: ''
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Obteniendo datos actualizados...');
+      
+      // Limpiar caché agregando timestamp para evitar respuestas en caché
+      const timestamp = new Date().getTime();
+      
+      // Obtener roles primero para asegurar que estén disponibles
+      const rolesRes = await rolService.getAll();
+      console.log('📊 Roles actualizados:', rolesRes.data);
+      setRoles(rolesRes.data);
+      
+      // Luego obtener usuarios con un pequeño retraso
+      const usuariosRes = await usuarioService.getAll();
+      console.log('📊 Usuarios actualizados:', usuariosRes.data);
+      
+      // Mapear usuarios para asegurarnos que tienen la información de rol correcta
+      const usuariosActualizados = usuariosRes.data.map(usuario => {
+        // Verificar el rol asociado
+        const rolId = usuario.ID_Rol;
+        if (rolId) {
+          const rol = rolesRes.data.find(r => (r.ID_Rol || r.id) === rolId);
+          if (rol) {
+            console.log(`Usuario ${usuario.ID_Usuario || usuario.id} tiene rol: ${rol.Nombre} (ID: ${rolId})`);
+          }
+        }
+        return usuario;
+      });
+      
+      setUsuarios(usuariosActualizados);
+      console.log('✅ Datos actualizados correctamente');
+    } catch (error) {
+      console.error('❌ Error al cargar datos:', error);
+      alert('Error al cargar los datos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingUsuario) {
+        const userId = editingUsuario.ID_Usuario || editingUsuario.id;
+        const rolId = formData.Rol ? parseInt(formData.Rol) : null;
+        
+        console.log('👤 Usuario ID:', userId);
+        console.log('🔑 Rol seleccionado:', formData.Rol);
+        console.log('🔢 Rol ID convertido:', rolId);
+        
+        // Datos simplificados del usuario
+        const datosUsuario = {
+          Nombre: formData.Nombre,
+          Apellido: formData.Apellido,
+          Correo: formData.Correo,
+          ID_Rol: rolId
+        };
+        
+        // Mostrar los datos que vamos a enviar
+        console.log(`📝 Datos de actualización: ${JSON.stringify(datosUsuario)}`);
+        
+        let actualizacionExitosa = false;
+        let mensajeError = '';
+        
+        // Intentar con diferentes métodos
+        try {
+          // Obtener el usuario actual primero para verificar
+          const usuarioActual = await usuarioService.getById(userId);
+          console.log('📋 Usuario actual:', usuarioActual.data);
+          
+          // Si solo cambia el rol, intentar con updateRol primero
+          if (
+            datosUsuario.Nombre === usuarioActual.data.Nombre && 
+            datosUsuario.Apellido === usuarioActual.data.Apellido && 
+            datosUsuario.Correo === usuarioActual.data.Correo && 
+            datosUsuario.ID_Rol !== usuarioActual.data.ID_Rol
+          ) {
+            console.log('🔍 Solo el rol está cambiando, intentando actualizar solo el rol');
+            await usuarioService.updateRol(userId, rolId);
+            console.log('✅ Actualización de solo rol exitosa');
+            actualizacionExitosa = true;
+          } else {
+            // Intentar con método estándar
+            console.log('🔄 Intento 1: Método estándar de actualización');
+            await usuarioService.update(userId, datosUsuario);
+            console.log('✅ Actualización exitosa con método estándar');
+            actualizacionExitosa = true;
+          }
+        } catch (error1) {
+          console.error('❌ Primer intento falló:', error1);
+          mensajeError = error1.message;
+          
+          // Segundo intento: formato alternativo
+          try {
+            console.log('🔄 Intento 2: Formato alternativo');
+            await usuarioService.updateAlt(userId, datosUsuario);
+            console.log('✅ Actualización con formato alternativo exitosa');
+            actualizacionExitosa = true;
+          } catch (error2) {
+            console.error('❌ Segundo intento falló:', error2);
+            mensajeError += ' | ' + error2.message;
+            
+            // Tercer intento: getAndUpdate
+            try {
+              console.log('🔄 Intento 3: Get and Update');
+              await usuarioService.getAndUpdate(userId, datosUsuario);
+              console.log('✅ Actualización con getAndUpdate exitosa');
+              actualizacionExitosa = true;
+            } catch (error3) {
+              console.error('❌ Tercer intento falló:', error3);
+              mensajeError += ' | ' + error3.message;
+          }
+        }
+        
+        if (!actualizacionExitosa) {
+          console.error('❌ Todos los intentos de actualización fallaron');
+          alert(`Error al actualizar: ${mensajeError}`);
+        } else {
+          // Cerrar modal y resetear formulario
+          setShowModal(false);
+          resetForm();
+          
+          // Actualizar la interfaz
+          await fetchData();
+          
+          // Refrescar datos después de un breve retraso
+          setTimeout(() => {
+            fetchData();
+          }, 1000);
+        }
+        
+      } else {
+        // Para crear nuevos usuarios, usar el formato estándar
+        const nuevoUsuario = {
+          Nombre: formData.Nombre,
+          Apellido: formData.Apellido,
+          Correo: formData.Correo,
+          Contraseña: formData.Contraseña,
+          ID_Rol: formData.Rol ? parseInt(formData.Rol) : null
+        };
+        
+        console.log('👤 Creando nuevo usuario:', nuevoUsuario);
+        
+        await usuarioService.create(nuevoUsuario);
+        console.log('✅ Usuario creado exitosamente');
+        
+        setShowModal(false);
+        resetForm();
+        await fetchData();
+        
+      } else {
+        // Para crear nuevos usuarios, incluir todos los campos obligatorios
+        const userData = {
+          Nombre: formData.Nombre,
+          Apellido: formData.Apellido,
+          Correo: formData.Correo,
+          Contraseña: formData.Contraseña,
+          ID_Rol: formData.Rol ? parseInt(formData.Rol) : null
+        };
+        
+        console.log('Sending CREATE user data:', userData);
+        await usuarioService.create(userData);
+        
+        setShowModal(false);
+        resetForm();
+        await fetchData();
+      }
+      
+    } catch (error) {
+      console.error('Error saving usuario:', error);
+      if (error.response?.data) {
+        console.error('Backend error details:', error.response.data);
+      }
+      alert('Error al guardar el usuario');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
+      try {
+        await usuarioService.delete(id);
+        fetchData();
+      } catch (error) {
+        console.error('Error deleting usuario:', error);
+        alert('Error al eliminar el usuario');
+      }
+    }
+  };
+
+  const handleEdit = (usuario) => {
+    console.log('📝 Editando usuario:', usuario);
+    console.log('👥 Roles disponibles:', roles);
+    
+    // Obtener el ID del rol actual
+    let currentRolId = '';
+    
+    // Analizar todas las posibles propiedades donde podría estar el rol
+    if (usuario.ID_Rol !== undefined && usuario.ID_Rol !== null) {
+      // Caso 1: Propiedad ID_Rol disponible (número o string)
+      currentRolId = usuario.ID_Rol.toString();
+      console.log(`🔍 Rol encontrado en ID_Rol: ${currentRolId}`);
+    } else if (usuario.RolId !== undefined && usuario.RolId !== null) {
+      // Caso 2: Propiedad RolId disponible
+      currentRolId = usuario.RolId.toString();
+      console.log(`🔍 Rol encontrado en RolId: ${currentRolId}`);
+    } else if (typeof usuario.Rol === 'number' || (typeof usuario.Rol === 'string' && !isNaN(usuario.Rol))) {
+      // Caso 3: Propiedad Rol es un número o string numérico
+      currentRolId = usuario.Rol.toString();
+      console.log(`🔍 Rol encontrado en Rol (numérico): ${currentRolId}`);
+    } else if (typeof usuario.Rol === 'string') {
+      // Caso 4: Propiedad Rol es un string (nombre del rol)
+      const foundRole = roles.find(r => r.Nombre === usuario.Rol);
+      if (foundRole) {
+        currentRolId = (foundRole.ID_Rol || foundRole.id).toString();
+        console.log(`🔍 Rol encontrado por nombre '${usuario.Rol}': ${currentRolId}`);
+      }
+    } else if (usuario.Rol && typeof usuario.Rol === 'object') {
+      // Caso 5: Propiedad Rol es un objeto completo
+      currentRolId = (usuario.Rol.ID_Rol || usuario.Rol.id).toString();
+      console.log(`🔍 Rol encontrado en objeto Rol: ${currentRolId}`);
+    }
+    
+    console.log('📊 Resumen del rol:');
+    console.log(`   - ID del rol actual: ${currentRolId}`);
+    console.log(`   - usuario.Rol: ${typeof usuario.Rol === 'object' ? JSON.stringify(usuario.Rol) : usuario.Rol}`);
+    console.log(`   - usuario.ID_Rol: ${usuario.ID_Rol}`);
+    
+    // Si no encontramos un rol, verificar un rol en la lista que coincida con el usuario
+    if (!currentRolId && roles.length > 0) {
+      // Buscar un rol por su nombre que coincida con alguna propiedad del usuario
+      const rolEncontrado = roles.find(r => 
+        usuario.Rol === r.Nombre || 
+        usuario.RolNombre === r.Nombre
+      );
+      
+      if (rolEncontrado) {
+        currentRolId = (rolEncontrado.ID_Rol || rolEncontrado.id).toString();
+        console.log(`🔍 Rol encontrado por coincidencia de nombre: ${currentRolId}`);
+      }
+    }
+    
+    setEditingUsuario(usuario);
+    setFormData({
+      Nombre: usuario.Nombre || '',
+      Apellido: usuario.Apellido || '',
+      Correo: usuario.Correo || '',
+      Contraseña: '', // Limpiar la contraseña para que no se envíe
+      Rol: currentRolId
+    });
+    
+    console.log('🔄 Formulario preparado para edición:', {
+      ...formData,
+      Rol: currentRolId
+    });
+    
+    setShowModal(true);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      Nombre: '',
+      Apellido: '',
+      Correo: '',
+      Contraseña: '',
+      Rol: ''
+    });
+    setEditingUsuario(null);
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('es-ES');
+  };
+
+  const getRolNombre = (usuario) => {
+    // Buscar el rol por diferentes posibles campos
+    const rolId = usuario.ID_Rol || usuario.RolId || usuario.Rol;
+    if (!rolId) return 'Sin asignar';
+    
+    // Si el rol ya es un string (nombre), devolverlo
+    if (typeof rolId === 'string' && isNaN(rolId)) {
+      return rolId;
+    }
+    
+    // Buscar el rol en la lista de roles por ID numérico
+    // Convertir a número para comparación
+    const rolIdNum = typeof rolId === 'string' ? parseInt(rolId) : rolId;
+    const rol = roles.find(r => {
+      const rId = r.ID_Rol || r.id;
+      const rIdNum = typeof rId === 'string' ? parseInt(rId) : rId;
+      return rIdNum === rolIdNum;
+    });
+    
+    if (rol) {
+      console.log(`🔍 Rol encontrado para usuario ${usuario.ID_Usuario}: ${rol.Nombre} (ID: ${rolIdNum})`);
+      return rol.Nombre;
+    } else {
+      console.log(`⚠️ No se encontró rol para ID: ${rolIdNum}`);
+      return 'Sin asignar';
+    }
+  };
+
+  if (loading) {
+    return <div className="loading">Cargando usuarios...</div>;
+  }
+
+  return (
+    <div className="usuarios">
+      <div className="usuarios-header">
+        <h1>Gestión de Usuarios</h1>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            className="btn btn-secondary"
+            onClick={fetchData}
+            style={{ backgroundColor: '#6c757d' }}
+          >
+            🔄 Refrescar
+          </button>
+          <button 
+            className="btn btn-primary"
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+          >
+            Nuevo Usuario
+          </button>
+        </div>
+      </div>
+
+      <div className="usuarios-table">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Apellido</th>
+              <th>Correo</th>
+              <th>Rol</th>
+              <th>Fecha Creación</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {usuarios.map((usuario) => (
+              <tr key={usuario.ID_Usuario || usuario.id}>
+                <td>{usuario.ID_Usuario || usuario.id}</td>
+                <td>{usuario.Nombre}</td>
+                <td>{usuario.Apellido}</td>
+                <td>{usuario.Correo}</td>
+                <td>
+                  <span className="rol-badge">
+                    {getRolNombre(usuario)}
+                  </span>
+                </td>
+                <td>{formatDate(usuario.FechaCreacion)}</td>
+                <td>
+                  <div className="action-buttons">
+                    <button 
+                      className="btn btn-sm btn-edit"
+                      onClick={() => handleEdit(usuario)}
+                    >
+                      Editar
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-delete"
+                      onClick={() => handleDelete(usuario.ID_Usuario || usuario.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>{editingUsuario ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label>Nombre:</label>
+                <input
+                  type="text"
+                  value={formData.Nombre}
+                  onChange={(e) => setFormData({...formData, Nombre: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Apellido:</label>
+                <input
+                  type="text"
+                  value={formData.Apellido}
+                  onChange={(e) => setFormData({...formData, Apellido: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Correo:</label>
+                <input
+                  type="email"
+                  value={formData.Correo}
+                  onChange={(e) => setFormData({...formData, Correo: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Contraseña {editingUsuario ? '(opcional)' : ''}:</label>
+                <input
+                  type="password"
+                  value={formData.Contraseña}
+                  onChange={(e) => setFormData({...formData, Contraseña: e.target.value})}
+                  required={!editingUsuario}
+                  placeholder={editingUsuario ? "No se cambiará la contraseña" : "Ingrese una contraseña"}
+                />
+              </div>
+              <div className="form-group">
+                <label>Rol:</label>
+                <select
+                  value={formData.Rol}
+                  onChange={(e) => {
+                    console.log('Rol seleccionado:', e.target.value);
+                    setFormData({...formData, Rol: e.target.value});
+                  }}
+                >
+                  <option value="">Seleccionar rol</option>
+                  {roles.map(rol => {
+                    const rolId = rol.ID_Rol || rol.id;
+                    return (
+                      <option key={rolId} value={rolId}>
+                        {rol.Nombre} (ID: {rolId})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowModal(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {editingUsuario ? 'Actualizar' : 'Crear'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Usuarios;

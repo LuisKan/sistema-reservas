@@ -81,6 +81,9 @@ export const usuarioService = {
     return api.put(`/Usuarios/${id}`, userDataToSend);
   },
   delete: (id) => api.delete(`/Usuarios/${id}`),
+  // Métodos de autenticación
+  login: (credentials) => api.post('/Usuarios/login', credentials),
+  getCurrentUser: () => api.get('/Usuarios/actual'),
 };
 
 // Servicios para Espacios

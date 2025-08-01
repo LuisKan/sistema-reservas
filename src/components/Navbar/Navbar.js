@@ -1,11 +1,42 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import './Navbar.css';
 
 const Navbar = () => {
   const location = useLocation();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, setUser } = useAuth();
+  const [userInfo, setUserInfo] = useState(user);
+  
+  // Mantenerse sincronizado con localStorage para reflejar cambios inmediatos
+  useEffect(() => {
+    // Función para verificar cambios en localStorage
+    const checkUserChanges = () => {
+      try {
+        const localStorageUser = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        // Si el usuario actual tiene información diferente al localStorage, actualizar
+        if (user && localStorageUser && 
+            (user.Rol !== localStorageUser.Rol || 
+             user.Nombre !== localStorageUser.Nombre)) {
+          console.log('[Navbar] Detectado cambio en datos de usuario, actualizando desde localStorage');
+          setUser(localStorageUser);
+        }
+        
+        setUserInfo(localStorageUser);
+      } catch (error) {
+        console.error('[Navbar] Error al procesar datos de usuario:', error);
+      }
+    };
+    
+    // Verificar cambios al montar el componente
+    checkUserChanges();
+    
+    // Configurar un intervalo para verificar cambios periódicamente
+    const interval = setInterval(checkUserChanges, 2000);
+    
+    return () => clearInterval(interval);
+  }, [user, setUser]);
 
   const isActive = (path) => {
     return location.pathname === path ? 'active' : '';
@@ -50,7 +81,7 @@ const Navbar = () => {
             
             <div className="user-section">
               <span className="user-info">
-                {user?.Nombre} ({user?.Rol})
+                {userInfo?.Nombre} ({userInfo?.Rol || 'Usuario'})
               </span>
               <button className="logout-button" onClick={logout}>
                 Cerrar Sesión

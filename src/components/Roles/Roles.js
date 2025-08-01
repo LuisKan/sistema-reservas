@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { rolService } from '../../services/api';
+import { usePermissions } from '../../contexts/PermissionsContext';
+import RestrictedAccess from '../RestrictedAccess/RestrictedAccess';
 import './Roles.css';
 
 const Roles = () => {
@@ -10,6 +12,7 @@ const Roles = () => {
   const [formData, setFormData] = useState({
     Nombre: ''
   });
+  const { hasPermission } = usePermissions();
 
   useEffect(() => {
     fetchRoles();
@@ -47,14 +50,12 @@ const Roles = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este rol?')) {
-      try {
-        await rolService.delete(id);
-        fetchRoles();
-      } catch (error) {
-        console.error('Error deleting rol:', error);
-        alert('Error al eliminar el rol');
-      }
+    try {
+      await rolService.delete(id);
+      fetchRoles();
+    } catch (error) {
+      console.error('Error deleting rol:', error);
+      alert('Error al eliminar el rol');
     }
   };
 
@@ -81,15 +82,21 @@ const Roles = () => {
     <div className="roles">
       <div className="roles-header">
         <h1>Gestión de Roles</h1>
-        <button 
-          className="btn btn-primary"
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
+        <RestrictedAccess 
+          module="roles" 
+          action="create"
+          fallback={null}
         >
-          Nuevo Rol
-        </button>
+          <button 
+            className="btn btn-primary"
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+          >
+            Nuevo Rol
+          </button>
+        </RestrictedAccess>
       </div>
 
       <div className="roles-grid">
@@ -100,18 +107,29 @@ const Roles = () => {
               <span className="rol-id">ID: {rol.ID_Rol || rol.id}</span>
             </div>
             <div className="rol-actions">
-              <button 
-                className="btn btn-sm btn-edit"
-                onClick={() => handleEdit(rol)}
+              <RestrictedAccess
+                module="roles"
+                action="edit"
               >
-                Editar
-              </button>
-              <button 
-                className="btn btn-sm btn-delete"
-                onClick={() => handleDelete(rol.ID_Rol || rol.id)}
+                <button 
+                  className="btn btn-sm btn-edit"
+                  onClick={() => handleEdit(rol)}
+                >
+                  Editar
+                </button>
+              </RestrictedAccess>
+              
+              <RestrictedAccess
+                module="roles"
+                action="delete"
               >
-                Eliminar
-              </button>
+                <button 
+                  className="btn btn-sm btn-delete"
+                  onClick={() => handleDelete(rol.ID_Rol || rol.id)}
+                >
+                  Eliminar
+                </button>
+              </RestrictedAccess>
             </div>
           </div>
         ))}
@@ -120,15 +138,21 @@ const Roles = () => {
       {roles.length === 0 && !loading && (
         <div className="empty-state">
           <p>No hay roles registrados</p>
-          <button 
-            className="btn btn-primary"
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
+          <RestrictedAccess 
+            module="roles" 
+            action="create"
+            fallback={null}
           >
-            Crear primer rol
-          </button>
+            <button 
+              className="btn btn-primary"
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+            >
+              Crear primer rol
+            </button>
+          </RestrictedAccess>
         </div>
       )}
 

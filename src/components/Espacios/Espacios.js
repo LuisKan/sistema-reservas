@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { espacioService } from '../../services/api';
+import { usePermissions } from '../../contexts/PermissionsContext';
+import RestrictedAccess from '../RestrictedAccess/RestrictedAccess';
 import './Espacios.css';
 
 const Espacios = () => {
@@ -13,6 +15,7 @@ const Espacios = () => {
     Ubicacion: '',
     Capacidad: ''
   });
+  const { hasPermission } = usePermissions();
 
   useEffect(() => {
     fetchEspacios();
@@ -22,7 +25,25 @@ const Espacios = () => {
     try {
       setLoading(true);
       const response = await espacioService.getAll();
-      setEspacios(response.data);
+      
+      console.log('[Espacios] Datos recibidos del backend:', response.data);
+      
+      // Procesar los espacios para asegurar que tienen fechas válidas
+      const espaciosProcesados = response.data.map(espacio => {
+        // Si no hay fecha de creación o es inválida, asignamos la fecha actual
+        if (!espacio.FechaCreacion || 
+            espacio.FechaCreacion === 'undefined' || 
+            isNaN(new Date(espacio.FechaCreacion).getTime())) {
+          console.log(`[Espacios] Fecha inválida para espacio ${espacio.Nombre}, asignando fecha actual`);
+          return {
+            ...espacio,
+            FechaCreacion: new Date().toISOString()
+          };
+        }
+        return espacio;
+      });
+      
+      setEspacios(espaciosProcesados);
     } catch (error) {
       console.error('Error fetching espacios:', error);
       alert('Error al cargar los espacios');
@@ -34,14 +55,35 @@ const Espacios = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Verificar que todos los campos requeridos estén presentes
+      if (!formData.Nombre || !formData.Tipo || !formData.Ubicacion || !formData.Capacidad) {
+        alert('Por favor complete todos los campos requeridos');
+        return;
+      }
+      
+      // Asegurarnos de que la capacidad sea un número
+      const capacidad = parseInt(formData.Capacidad);
+      if (isNaN(capacidad) || capacidad <= 0) {
+        alert('La capacidad debe ser un número mayor que cero');
+        return;
+      }
+      
+      // Crear objeto con el formato exacto que espera el backend
       const espacioData = {
-        ...formData,
-        Capacidad: parseInt(formData.Capacidad)
+        Nombre: formData.Nombre,
+        Tipo: formData.Tipo,
+        Ubicacion: formData.Ubicacion,
+        Capacidad: capacidad
       };
+      
+      console.log('[Espacios] Datos a enviar:', espacioData);
 
       if (editingEspacio) {
-        await espacioService.update(editingEspacio.ID_Espacio || editingEspacio.id, espacioData);
+        const id = editingEspacio.ID_Espacio || editingEspacio.id;
+        console.log(`[Espacios] Actualizando espacio con ID: ${id}`);
+        await espacioService.update(id, espacioData);
       } else {
+        console.log('[Espacios] Creando nuevo espacio');
         await espacioService.create(espacioData);
       }
       
@@ -50,19 +92,17 @@ const Espacios = () => {
       setShowModal(false);
     } catch (error) {
       console.error('Error saving espacio:', error);
-      alert('Error al guardar el espacio');
+      alert('Error al guardar el espacio: ' + (error.response?.data?.message || error.message));
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este espacio?')) {
-      try {
-        await espacioService.delete(id);
-        fetchEspacios();
-      } catch (error) {
-        console.error('Error deleting espacio:', error);
-        alert('Error al eliminar el espacio');
-      }
+    try {
+      await espacioService.delete(id);
+      fetchEspacios();
+    } catch (error) {
+      console.error('Error deleting espacio:', error);
+      alert('Error al eliminar el espacio');
     }
   };
 
@@ -88,7 +128,30 @@ const Espacios = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-ES');
+    // Si no hay fecha o la fecha es inválida
+    if (!dateString || dateString === 'undefined' || dateString === 'null') {
+      return "Fecha no disponible";
+    }
+    
+    try {
+      const date = new Date(dateString);
+      
+      // Verificar si la fecha es válida
+      if (isNaN(date.getTime())) {
+        console.error('[Espacios] Fecha inválida:', dateString);
+        return "Fecha inválida";
+      }
+      
+      // Formatear la fecha como día/mes/año
+      return date.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error('[Espacios] Error al formatear fecha:', error);
+      return "Error en formato de fecha";
+    }
   };
 
   if (loading) {
@@ -99,15 +162,21 @@ const Espacios = () => {
     <div className="espacios">
       <div className="espacios-header">
         <h1>Gestión de Espacios</h1>
-        <button 
-          className="btn btn-primary"
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
+        <RestrictedAccess 
+          module="espacios" 
+          action="create"
+          fallback={null}
         >
-          Nuevo Espacio
-        </button>
+          <button 
+            className="btn btn-primary"
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+          >
+            Nuevo Espacio
+          </button>
+        </RestrictedAccess>
       </div>
 
       <div className="espacios-grid">
@@ -121,20 +190,33 @@ const Espacios = () => {
               <p><strong>Ubicación:</strong> {espacio.Ubicacion}</p>
               <p><strong>Capacidad:</strong> {espacio.Capacidad} personas</p>
               <p><strong>Creado:</strong> {formatDate(espacio.FechaCreacion)}</p>
+              {/* Mostrar fecha en formato ISO para depuración si es necesario */}
+              {/* <p className="debug-info">Fecha ISO: {espacio.FechaCreacion}</p> */}
             </div>
             <div className="espacio-actions">
-              <button 
-                className="btn btn-sm btn-edit"
-                onClick={() => handleEdit(espacio)}
+              <RestrictedAccess
+                module="espacios"
+                action="edit"
               >
-                Editar
-              </button>
-              <button 
-                className="btn btn-sm btn-delete"
-                onClick={() => handleDelete(espacio.ID_Espacio || espacio.id)}
+                <button 
+                  className="btn btn-sm btn-edit"
+                  onClick={() => handleEdit(espacio)}
+                >
+                  Editar
+                </button>
+              </RestrictedAccess>
+              
+              <RestrictedAccess
+                module="espacios"
+                action="delete"
               >
-                Eliminar
-              </button>
+                <button 
+                  className="btn btn-sm btn-delete"
+                  onClick={() => handleDelete(espacio.ID_Espacio || espacio.id)}
+                >
+                  Eliminar
+                </button>
+              </RestrictedAccess>
             </div>
           </div>
         ))}
@@ -143,15 +225,21 @@ const Espacios = () => {
       {espacios.length === 0 && !loading && (
         <div className="empty-state">
           <p>No hay espacios registrados</p>
-          <button 
-            className="btn btn-primary"
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
+          <RestrictedAccess 
+            module="espacios" 
+            action="create"
+            fallback={null}
           >
-            Crear primer espacio
-          </button>
+            <button 
+              className="btn btn-primary"
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+            >
+              Crear primer espacio
+            </button>
+          </RestrictedAccess>
         </div>
       )}
 

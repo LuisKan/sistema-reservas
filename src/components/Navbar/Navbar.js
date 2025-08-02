@@ -42,6 +42,10 @@ const Navbar = () => {
     return location.pathname === path ? 'active' : '';
   };
 
+  // Debug: verificar el rol del usuario
+  console.log('[Navbar] userInfo:', userInfo);
+  console.log('[Navbar] Rol del usuario:', userInfo?.Rol);
+
   return (
     <nav className="navbar">
       <div className="navbar-container">
@@ -77,6 +81,13 @@ const Navbar = () => {
                   Roles
                 </Link>
               </li>
+              {(userInfo?.Rol === 'Admin' || userInfo?.Rol === 'Administrador') && (
+                <li className="navbar-item">
+                  <Link to="/historial-reservas" className={`navbar-link ${isActive('/historial-reservas')}`}>
+                    Historial
+                  </Link>
+                </li>
+              )}
             </ul>
             
             <div className="user-section">

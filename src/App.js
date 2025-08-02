@@ -6,6 +6,7 @@ import Reservas from './components/Reservas/Reservas';
 import Espacios from './components/Espacios/Espacios';
 import Usuarios from './components/Usuarios/Usuarios';
 import Roles from './components/Roles/Roles';
+import HistorialReservas from './components/HistorialReservas/HistorialReservas';
 import Login from './components/Login/Login';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
@@ -31,6 +32,7 @@ function App() {
                   <Route path="/espacios" element={<Espacios />} />
                   <Route path="/usuarios" element={<Usuarios />} />
                   <Route path="/roles" element={<Roles />} />
+                  <Route path="/historial-reservas" element={<HistorialReservas />} />
                 </Route>
                 
                 {/* Redirección por defecto a la página de login */}

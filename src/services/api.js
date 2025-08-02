@@ -412,6 +412,17 @@ export const reservaService = {
     return api.put(`/Reservas/${id}`, normalizedReserva);
   },
   delete: (id) => api.delete(`/Reservas/${id}`),
+  
+  // Métodos para consultar historial (solo para admin)
+  getHistorialPorUsuario: (idUsuario) => {
+    console.log(`[API] Consultando historial de reservas para usuario ${idUsuario}`);
+    return api.get(`/reservas/historial/usuario/${idUsuario}`);
+  },
+  
+  getHistorialPorEspacio: (idEspacio) => {
+    console.log(`[API] Consultando historial de reservas para espacio ${idEspacio}`);
+    return api.get(`/reservas/historial/espacio/${idEspacio}`);
+  },
 };
 
 export default api;

@@ -25,6 +25,15 @@ api.interceptors.request.use(
       fullURL: `${config.baseURL || ''}${config.url || ''}`
     });
     
+    // Agregar token de autorización si existe
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log('[API] Token agregado a la petición');
+    } else {
+      console.log('[API] No se encontró token en localStorage');
+    }
+    
     // Log de los datos enviados en peticiones POST y PUT
     if (config.method === 'post' || config.method === 'put') {
       console.log('[API] Request data:', JSON.stringify(config.data, null, 2));
@@ -57,8 +66,19 @@ api.interceptors.response.use(
       data: error.response?.data
     });
     
+    // Manejar errores de autenticación
+    if (error.response?.status === 401) {
+      console.warn('[API] Error de autenticación (401) - Token inválido o expirado');
+      // Limpiar datos de autenticación
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      // Redirigir al login si no estamos ya ahí
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
     // Manejar diferentes tipos de errores
-    if (error.response?.status === 404) {
+    else if (error.response?.status === 404) {
       console.warn('[API] Endpoint not found - Check if your Visual Studio API is running');
     } 
     else if (error.response?.status === 500) {
@@ -423,6 +443,50 @@ export const reservaService = {
     console.log(`[API] Consultando historial de reservas para espacio ${idEspacio}`);
     return api.get(`/reservas/historial/espacio/${idEspacio}`);
   },
+
+  // Método para verificar disponibilidad de espacio
+  verificarDisponibilidad: (espacioId, fecha, horaInicio, horaFin) => {
+    console.log(`[API] Verificando disponibilidad del espacio ${espacioId} para ${fecha} de ${horaInicio} a ${horaFin}`);
+    
+    const params = {
+      espacioId,
+      fecha,
+      horaInicio,
+      horaFin
+    };
+    
+    console.log('[API] Parámetros exactos:', params);
+    
+    // Construir URL manualmente para evitar problemas de encoding
+    const queryString = `espacioId=${espacioId}&fecha=${fecha}&horaInicio=${horaInicio}&horaFin=${horaFin}`;
+    const fullUrl = `${API_BASE_URL}/reservas/disponibilidad?${queryString}`;
+    console.log('[API] URL completa que se va a llamar:', fullUrl);
+    
+    // Usar axios directamente con la URL completa para evitar encoding automático
+    return axios.get(fullUrl, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(localStorage.getItem('token') && {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        })
+      },
+      timeout: 10000,
+      withCredentials: false
+    });
+  },
 };
 
-export default api;
+// Export por defecto con todos los servicios organizados
+const apiServices = {
+  // API básica
+  ...api,
+  
+  // Servicios organizados
+  roles: rolService,
+  usuarios: usuarioService,
+  espacios: espacioService,
+  reservas: reservaService
+};
+
+export default apiServices;

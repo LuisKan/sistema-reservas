@@ -42,10 +42,6 @@ const Navbar = () => {
     return location.pathname === path ? 'active' : '';
   };
 
-  // Debug: verificar el rol del usuario
-  console.log('[Navbar] userInfo:', userInfo);
-  console.log('[Navbar] Rol del usuario:', userInfo?.Rol);
-
   return (
     <nav className="navbar">
       <div className="navbar-container">
@@ -69,6 +65,11 @@ const Navbar = () => {
               <li className="navbar-item">
                 <Link to="/espacios" className={`navbar-link ${isActive('/espacios')}`}>
                   Espacios
+                </Link>
+              </li>
+              <li className="navbar-item">
+                <Link to="/disponibilidad" className={`navbar-link ${isActive('/disponibilidad')}`}>
+                  Disponibilidad
                 </Link>
               </li>
               <li className="navbar-item">

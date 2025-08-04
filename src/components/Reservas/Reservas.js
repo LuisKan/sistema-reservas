@@ -321,22 +321,24 @@ const Reservas = () => {
         return hora + ':00';
       };
       
-      // Mantener todos los campos necesarios, incluidos los nombres
+      // Encontrar el usuario de la reserva PRIMERO
+      const usuarioReserva = usuarios.find(u => 
+        (u.id || u.ID_Usuario) === reserva.ID_Usuario || u.Nombre === reserva.NombreUsuario
+      ) || { ID_Usuario: reserva.ID_Usuario, Nombre: reserva.NombreUsuario };
+
+      // Mantener todos los campos necesarios, incluidos los nombres Y EL ID_USUARIO
       const updateData = {
+        ID_Usuario: reserva.ID_Usuario || usuarioReserva.ID_Usuario || usuarioReserva.id,  // ¡IMPORTANTE! Incluir ID_Usuario
         ID_Espacio: reserva.ID_Espacio || 0,
         Fecha: reserva.Fecha ? new Date(reserva.Fecha).toISOString().split('T')[0] : '',
         HoraInicio: formatearHora(reserva.HoraInicio),
         HoraFin: formatearHora(reserva.HoraFin),
         Estado: newStatus,  // Cambiar el estado
         NombreEspacio: reserva.NombreEspacio || '',
+        NombreUsuario: reserva.NombreUsuario || usuarioReserva.Nombre,  // También mantener el nombre
         // Si hay fecha de creación, mantenerla
         FechaCreacion: reserva.FechaCreacion || null
       };
-      
-      // Encontrar el usuario de la reserva
-      const usuarioReserva = usuarios.find(u => 
-        (u.id || u.ID_Usuario) === reserva.ID_Usuario || u.Nombre === reserva.NombreUsuario
-      ) || { ID_Usuario: reserva.ID_Usuario, Nombre: reserva.NombreUsuario };
       
       console.log('[Reservas] Datos de actualización de estado:', updateData);
       console.log('[Reservas] Usuario de la reserva:', usuarioReserva);

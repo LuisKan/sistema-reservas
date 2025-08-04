@@ -255,8 +255,17 @@ const utils = {
     let idUsuario;
     let nombreUsuario;
     
-    // Priorizar el usuario pasado como parámetro
-    if (usuario && (usuario.ID_Usuario || usuario.id || usuario.Id)) {
+    // PRIORIDAD 1: Si la reserva ya tiene información del usuario, usarla (preservar usuario original)
+    if (reserva.ID_Usuario) {
+      idUsuario = reserva.ID_Usuario;
+      nombreUsuario = reserva.NombreUsuario;
+      console.log('[API] ===== USANDO USUARIO DE LA RESERVA (PRIORIDAD) =====');
+      console.log('[API] idUsuario:', idUsuario);
+      console.log('[API] nombreUsuario:', nombreUsuario);
+      console.log('[API] ===================================================');
+    }
+    // PRIORIDAD 2: Si se pasa un usuario específico como parámetro, usarlo
+    else if (usuario && (usuario.ID_Usuario || usuario.id || usuario.Id)) {
       idUsuario = usuario.ID_Usuario || usuario.id || usuario.Id;
       nombreUsuario = usuario.Nombre || usuario.NombreUsuario;
       console.log('[API] ===== USANDO USUARIO DEL PARÁMETRO =====');
@@ -265,24 +274,35 @@ const utils = {
       console.log('[API] usuario completo:', JSON.stringify(usuario, null, 2));
       console.log('[API] =====================================');
     }
-    // Si no hay usuario en parámetro, intentar con el de localStorage
+    // PRIORIDAD 3: Como último recurso, usar el usuario de localStorage (solo para nuevas reservas)
     else if (userFromStorage && (userFromStorage.ID_Usuario || userFromStorage.id || userFromStorage.Id)) {
       idUsuario = userFromStorage.ID_Usuario || userFromStorage.id || userFromStorage.Id;
       nombreUsuario = userFromStorage.Nombre || userFromStorage.NombreUsuario;
-      console.log('[API] ===== USANDO USUARIO DE LOCALSTORAGE =====');
+      console.log('[API] ===== USANDO USUARIO DE LOCALSTORAGE (ÚLTIMO RECURSO) =====');
       console.log('[API] idUsuario:', idUsuario);
       console.log('[API] nombreUsuario:', nombreUsuario);
       console.log('[API] userFromStorage completo:', JSON.stringify(userFromStorage, null, 2));
-      console.log('[API] ========================================');
+      console.log('[API] ================================================================');
     }
-    // Si la reserva ya tiene información del usuario, usarla
-    else if (reserva.ID_Usuario) {
-      idUsuario = reserva.ID_Usuario;
-      nombreUsuario = reserva.NombreUsuario;
-      console.log('[API] ===== USANDO USUARIO DE LA RESERVA =====');
+    // PRIORIDAD 2: Si se pasa un usuario específico como parámetro, usarlo
+    else if (usuario && (usuario.ID_Usuario || usuario.id || usuario.Id)) {
+      idUsuario = usuario.ID_Usuario || usuario.id || usuario.Id;
+      nombreUsuario = usuario.Nombre || usuario.NombreUsuario;
+      console.log('[API] ===== USANDO USUARIO DEL PARÁMETRO =====');
       console.log('[API] idUsuario:', idUsuario);
       console.log('[API] nombreUsuario:', nombreUsuario);
-      console.log('[API] ===================================');
+      console.log('[API] usuario completo:', JSON.stringify(usuario, null, 2));
+      console.log('[API] =====================================');
+    }
+    // PRIORIDAD 3: Como último recurso, usar el usuario de localStorage (solo para nuevas reservas)
+    else if (userFromStorage && (userFromStorage.ID_Usuario || userFromStorage.id || userFromStorage.Id)) {
+      idUsuario = userFromStorage.ID_Usuario || userFromStorage.id || userFromStorage.Id;
+      nombreUsuario = userFromStorage.Nombre || userFromStorage.NombreUsuario;
+      console.log('[API] ===== USANDO USUARIO DE LOCALSTORAGE (ÚLTIMO RECURSO) =====');
+      console.log('[API] idUsuario:', idUsuario);
+      console.log('[API] nombreUsuario:', nombreUsuario);
+      console.log('[API] userFromStorage completo:', JSON.stringify(userFromStorage, null, 2));
+      console.log('[API] ================================================================');
     }
     // Como último recurso, usar valores por defecto
     else {
